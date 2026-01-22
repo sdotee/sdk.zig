@@ -16,6 +16,11 @@ pub const TagList = struct {
     tags: []const Tag,
 };
 
+pub const DeleteParams = struct {
+    domain: []const u8,
+    slug: []const u8,
+};
+
 pub fn getDomains(client: *Client) !json.Parsed(Response(DomainList)) {
     return client.request(.GET, "/domains", null, DomainList);
 }

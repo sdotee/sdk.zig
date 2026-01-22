@@ -20,10 +20,7 @@ pub const UpdateTextParams = struct {
     title: ?[]const u8 = null,
 };
 
-pub const DeleteTextParams = struct {
-    domain: []const u8,
-    slug: []const u8,
-};
+pub const DeleteTextParams = @import("common.zig").DeleteParams;
 
 pub const TextData = struct {
     short_url: []const u8,

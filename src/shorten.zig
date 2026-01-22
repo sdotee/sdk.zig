@@ -20,10 +20,7 @@ pub const UpdateShortParams = struct {
     title: []const u8,
 };
 
-pub const DeleteShortParams = struct {
-    domain: []const u8,
-    slug: []const u8,
-};
+pub const DeleteShortParams = @import("common.zig").DeleteParams;
 
 pub const ShortURL = struct {
     short_url: []const u8,

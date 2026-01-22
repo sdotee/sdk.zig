@@ -40,10 +40,6 @@ pub const Client = struct {
         return self.doRequestInternal(method, url, params, Response(ResponseType));
     }
 
-    pub fn requestAny(self: *Client, method: http.Method, url: []const u8, params: anytype, comptime ResponseType: type) !json.Parsed(ResponseType) {
-        return self.doRequestInternal(method, url, params, ResponseType);
-    }
-
     pub fn multipartRequest(self: *Client, path: []const u8, file_content: []const u8, filename: []const u8, comptime ResponseType: type) !json.Parsed(Response(ResponseType)) {
         const url = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ self.base_url, path });
         defer self.allocator.free(url);

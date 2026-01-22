@@ -1,6 +1,7 @@
 const std = @import("std");
 const Client = @import("client.zig").Client;
 const Response = @import("client.zig").Response;
+const DomainList = @import("common.zig").DomainList;
 const json = std.json;
 
 pub const FileUploadResponse = struct {
@@ -13,10 +14,6 @@ pub const FileUploadResponse = struct {
     height: i64,
     storename: []const u8,
     path: []const u8,
-};
-
-pub const FileDomainList = struct {
-    domains: []const []const u8,
 };
 
 pub const FileDeleteResponse = struct {
@@ -33,14 +30,11 @@ pub fn delete(client: *Client, delete_hash: []const u8) !json.Parsed(FileDeleteR
     const path = try std.fmt.allocPrint(client.allocator, "/file/delete/{s}", .{delete_hash});
     defer client.allocator.free(path);
 
-    const url = try std.fmt.allocPrint(client.allocator, "{s}{s}", .{ client.base_url, path });
-    defer client.allocator.free(url);
-
-    return client.requestAny(.GET, url, null, FileDeleteResponse);
+    return client.request(.GET, path, null, FileDeleteResponse);
 }
 
-pub fn getDomains(client: *Client) !json.Parsed(Response(FileDomainList)) {
-    return client.request(.GET, "/file/domains", null, FileDomainList);
+pub fn getDomains(client: *Client) !json.Parsed(Response(DomainList)) {
+    return client.request(.GET, "/file/domains", null, DomainList);
 }
 
 test "parse upload response" {
