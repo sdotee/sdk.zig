@@ -4,6 +4,7 @@ const Response = @import("client.zig").Response;
 const DomainList = @import("common.zig").DomainList;
 const json = std.json;
 
+/// Response returned after successfully uploading a file
 pub const FileUploadResponse = struct {
     url: []const u8,
     delete: []const u8,
@@ -16,16 +17,21 @@ pub const FileUploadResponse = struct {
     path: []const u8,
 };
 
+/// Response returned after deleting a file
 pub const FileDeleteResponse = struct {
     code: []const u8,
     message: []const u8,
     success: bool,
 };
 
+/// Upload a file to S.EE
+/// - file_content: The content of the file
+/// - filename: Original filename
 pub fn upload(client: *Client, file_content: []const u8, filename: []const u8) !json.Parsed(Response(FileUploadResponse)) {
     return client.multipartRequest("/file/upload", file_content, filename, FileUploadResponse);
 }
 
+/// Delete a file using its delete hash (returned during upload)
 pub fn delete(client: *Client, delete_hash: []const u8) !json.Parsed(FileDeleteResponse) {
     const path = try std.fmt.allocPrint(client.allocator, "/file/delete/{s}", .{delete_hash});
     defer client.allocator.free(path);
@@ -33,6 +39,7 @@ pub fn delete(client: *Client, delete_hash: []const u8) !json.Parsed(FileDeleteR
     return client.request(.GET, path, null, FileDeleteResponse);
 }
 
+/// Get available domains for file hosting
 pub fn getDomains(client: *Client) !json.Parsed(Response(DomainList)) {
     return client.request(.GET, "/file/domains", null, DomainList);
 }

@@ -3,6 +3,7 @@ const json = std.json;
 const http = std.http;
 const Allocator = std.mem.Allocator;
 
+/// Generic response wrapper for API responses
 pub fn Response(comptime T: type) type {
     return struct {
         code: i64,
@@ -11,6 +12,8 @@ pub fn Response(comptime T: type) type {
     };
 }
 
+/// S.EE API Client
+/// Handles authentication and HTTP requests to the API
 pub const Client = struct {
     allocator: Allocator,
     api_key: []const u8,
@@ -19,6 +22,10 @@ pub const Client = struct {
 
     const default_base_url = "https://s.ee/api/v1";
 
+    /// Initialize a new API client
+    /// - allocator: Memory allocator
+    /// - api_key: Your S.EE API key
+    /// - base_url: Optional API base URL (defaults to "https://s.ee/api/v1")
     pub fn init(allocator: Allocator, api_key: []const u8, base_url: ?[]const u8) !Client {
         return .{
             .allocator = allocator,
@@ -28,18 +35,29 @@ pub const Client = struct {
         };
     }
 
+    /// Deinitialize the client and free resources
     pub fn deinit(self: *Client) void {
         self.allocator.free(self.api_key);
         self.allocator.free(self.base_url);
         self.http_client.deinit();
     }
 
+    /// Send a JSON request to the API
+    /// - method: HTTP method (GET, POST, PUT, DELETE)
+    /// - path: API endpoint path
+    /// - params: Request parameters (will be serialized to JSON)
+    /// - ResponseType: Expected response data type
     pub fn request(self: *Client, method: http.Method, path: []const u8, params: anytype, comptime ResponseType: type) !json.Parsed(Response(ResponseType)) {
         const url = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ self.base_url, path });
         defer self.allocator.free(url);
         return self.doRequestInternal(method, url, params, Response(ResponseType));
     }
 
+    /// Send a multipart/form-data request (for file uploads)
+    /// - path: API endpoint path
+    /// - file_content: content of the file to upload
+    /// - filename: name of the file
+    /// - ResponseType: Expected response data type
     pub fn multipartRequest(self: *Client, path: []const u8, file_content: []const u8, filename: []const u8, comptime ResponseType: type) !json.Parsed(Response(ResponseType)) {
         const url = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ self.base_url, path });
         defer self.allocator.free(url);

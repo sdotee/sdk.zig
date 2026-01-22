@@ -2,6 +2,7 @@ const std = @import("std");
 const Client = @import("client.zig").Client;
 const json = std.json;
 
+/// Parameters for creating a shortened URL
 pub const CreateShortParams = struct {
     target_url: []const u8,
     domain: []const u8,
@@ -13,6 +14,7 @@ pub const CreateShortParams = struct {
     tag_ids: ?[]const i64 = null,
 };
 
+/// Parameters for updating a shortened URL
 pub const UpdateShortParams = struct {
     domain: []const u8,
     slug: []const u8,
@@ -20,22 +22,27 @@ pub const UpdateShortParams = struct {
     title: []const u8,
 };
 
+/// Parameters for deleting a shortened URL
 pub const DeleteShortParams = @import("common.zig").DeleteParams;
 
+/// Shortened URL details
 pub const ShortURL = struct {
     short_url: []const u8,
     slug: []const u8,
     custom_slug: ?[]const u8 = null,
 };
 
+/// Create a new shortened URL
 pub fn create(client: *Client, params: CreateShortParams) !json.Parsed(@import("client.zig").Response(ShortURL)) {
     return client.request(.POST, "/shorten", params, ShortURL);
 }
 
+/// Update an existing shortened URL
 pub fn update(client: *Client, params: UpdateShortParams) !json.Parsed(@import("client.zig").Response(json.Value)) {
     return client.request(.PUT, "/shorten", params, json.Value);
 }
 
+/// Delete a shortened URL
 pub fn delete(client: *Client, params: DeleteShortParams) !json.Parsed(@import("client.zig").Response(json.Value)) {
     return client.request(.DELETE, "/shorten", params, json.Value);
 }
