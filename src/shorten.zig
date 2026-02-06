@@ -37,6 +37,28 @@ pub fn create(client: *Client, params: CreateShortParams) !json.Parsed(@import("
     return client.request(.POST, "/shorten", params, ShortURL);
 }
 
+/// Parameters for creating a shortened URL (Simple Mode)
+pub const CreateShortSimpleParams = struct {
+    url: []const u8,
+    signature: ?[]const u8 = null,
+    domain: ?[]const u8 = null,
+    custom_slug: ?[]const u8 = null,
+    title: ?[]const u8 = null,
+    tag_ids: ?[]const i64 = null,
+    password: ?[]const u8 = null,
+    expire_at: ?i64 = null,
+    json: ?bool = true,
+};
+
+/// Create a new shortened URL (Simple Mode)
+pub fn createSimple(client: *Client, params: CreateShortSimpleParams) !json.Parsed(@import("client.zig").Response(ShortURL)) {
+    var p = params;
+    if (p.signature == null) {
+        p.signature = client.api_key;
+    }
+    return client.request(.GET, "/shorten", p, ShortURL);
+}
+
 /// Update an existing shortened URL
 pub fn update(client: *Client, params: UpdateShortParams) !json.Parsed(@import("client.zig").Response(json.Value)) {
     return client.request(.PUT, "/shorten", params, json.Value);

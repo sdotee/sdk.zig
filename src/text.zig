@@ -47,6 +47,11 @@ pub fn delete(client: *Client, params: DeleteTextParams) !json.Parsed(@import("c
     return client.request(.DELETE, "/text", params, json.Value);
 }
 
+/// Get available domains for text sharing
+pub fn getDomains(client: *Client) !json.Parsed(@import("client.zig").Response(@import("common.zig").DomainList)) {
+    return client.request(.GET, "/text/domains", null, @import("common.zig").DomainList);
+}
+
 test "parse create text response" {
     const response_json =
         \\{

@@ -108,10 +108,95 @@ pub const Client = struct {
         });
     }
 
-    fn doRequestInternal(self: *Client, method: http.Method, url: []const u8, params: anytype, comptime T: type) !json.Parsed(T) {
-        const uri = try std.Uri.parse(url);
+    fn appendQueryParams(self: *Client, url: []const u8, params: anytype) ![]u8 {
+        var buf = std.ArrayList(u8).init(self.allocator);
+        defer buf.deinit();
 
-        var req = try self.http_client.request(method, uri, .{
+        try buf.appendSlice(url);
+        const params_type = @TypeOf(params);
+        if (params_type == @TypeOf(null)) return self.allocator.dupe(u8, url);
+
+        const info = @typeInfo(params_type);
+        if (info != .Struct) return error.InvalidParamsType;
+
+        var first = !std.mem.containsAtLeast(u8, url, 1, "?");
+
+        inline for (info.Struct.fields) |field| {
+            const field_val = @field(params, field.name);
+            const FieldType = @TypeOf(field_val);
+            const type_info = @typeInfo(FieldType);
+
+            if (type_info == .Optional) {
+                if (field_val) |v| {
+                    try self.appendQueryParamValue(&buf, &first, field.name, v);
+                }
+            } else {
+                try self.appendQueryParamValue(&buf, &first, field.name, field_val);
+            }
+        }
+        return buf.toOwnedSlice();
+    }
+
+    fn appendQueryParamValue(self: *Client, buf: *std.ArrayList(u8), first: *bool, key: []const u8, value: anytype) !void {
+        const T = @TypeOf(value);
+        const info = @typeInfo(T);
+
+        if (info == .Array or (info == .Pointer and info.Pointer.size == .Slice)) {
+            const is_string = (info == .Pointer and info.Pointer.child == u8) or (info == .Array and info.Array.child == u8);
+            if (is_string) {
+                if (first.*) {
+                    try buf.append('?');
+                    first.* = false;
+                } else {
+                    try buf.append('&');
+                }
+                try buf.appendSlice(key);
+                try buf.append('=');
+                const encoded = try std.Uri.escapeString(self.allocator, value);
+                defer self.allocator.free(encoded);
+                try buf.appendSlice(encoded);
+            } else {
+                for (value) |item| {
+                    try self.appendQueryParamValue(buf, first, key, item);
+                }
+            }
+        } else {
+            if (first.*) {
+                try buf.append('?');
+                first.* = false;
+            } else {
+                try buf.append('&');
+            }
+            try buf.appendSlice(key);
+            try buf.append('=');
+
+            var str_val: []u8 = undefined;
+            if (T == bool) {
+                str_val = if (value) try self.allocator.dupe(u8, "true") else try self.allocator.dupe(u8, "false");
+            } else {
+                str_val = try std.fmt.allocPrint(self.allocator, "{any}", .{value});
+            }
+            defer self.allocator.free(str_val);
+
+            const encoded = try std.Uri.escapeString(self.allocator, str_val);
+            defer self.allocator.free(encoded);
+            try buf.appendSlice(encoded);
+        }
+    }
+
+    fn doRequestInternal(self: *Client, method: http.Method, url_in: []const u8, params: anytype, comptime T: type) !json.Parsed(T) {
+        var url_parsed: std.Uri = undefined;
+        var url_with_query: ?[]u8 = null;
+
+        if (method == .GET and @TypeOf(params) != @TypeOf(null)) {
+            url_with_query = try self.appendQueryParams(url_in, params);
+            url_parsed = try std.Uri.parse(url_with_query.?);
+        } else {
+            url_parsed = try std.Uri.parse(url_in);
+        }
+        defer if (url_with_query) |u| self.allocator.free(u);
+
+        var req = try self.http_client.request(method, url_parsed, .{
             .keep_alive = false,
             .headers = .{
                 .authorization = .{ .override = self.api_key },
@@ -120,11 +205,11 @@ pub const Client = struct {
         });
         defer req.deinit();
 
-        // Prepare request body if params provided
+        // Prepare request body if params provided (and not GET)
         var body_str: ?[]u8 = null;
         defer if (body_str) |s| self.allocator.free(s);
 
-        if (@TypeOf(params) != @TypeOf(null)) {
+        if (method != .GET and @TypeOf(params) != @TypeOf(null)) {
             body_str = try std.fmt.allocPrint(self.allocator, "{f}", .{json.fmt(params, .{})});
         }
 
@@ -187,3 +272,49 @@ pub const Client = struct {
         };
     }
 };
+
+test "query parameters" {
+    const allocator = std.testing.allocator;
+    var client = try Client.init(allocator, "dummy", null);
+    defer client.deinit();
+
+    const Params = struct {
+        foo: []const u8,
+        bar: i32,
+        baz: ?bool,
+        qux: ?[]const u8,
+    };
+
+    const p = Params{
+        .foo = "hello world",
+        .bar = 123,
+        .baz = true,
+        .qux = null,
+    };
+
+    const url = try client.appendQueryParams("http://example.com/api", p);
+    defer allocator.free(url);
+
+    try std.testing.expect(std.mem.indexOf(u8, url, "foo=hello%20world") != null);
+    try std.testing.expect(std.mem.indexOf(u8, url, "bar=123") != null);
+    try std.testing.expect(std.mem.indexOf(u8, url, "baz=true") != null);
+}
+
+test "array query parameters" {
+    const allocator = std.testing.allocator;
+    var client = try Client.init(allocator, "dummy", null);
+    defer client.deinit();
+
+    const Params = struct {
+        ids: []const i32,
+    };
+
+    const ids = [_]i32{ 1, 2 };
+    const p = Params{ .ids = &ids };
+
+    const url = try client.appendQueryParams("http://test", p);
+    defer allocator.free(url);
+
+    try std.testing.expect(std.mem.indexOf(u8, url, "ids=1") != null);
+    try std.testing.expect(std.mem.indexOf(u8, url, "ids=2") != null);
+}
