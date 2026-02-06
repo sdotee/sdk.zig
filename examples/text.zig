@@ -18,7 +18,7 @@ pub fn main() !void {
     var client = try see.Client.init(allocator, api_key, api_base);
     defer client.deinit();
 
-    // 1. 获取可用的文本分享域名列表
+    // 1. Fetch available domain list
     std.debug.print("=== Fetching available domains ===\n", .{});
     const domains_result = try see.common.getDomains(&client);
     defer domains_result.deinit();
@@ -34,7 +34,7 @@ pub fn main() !void {
 
     std.debug.print("\n", .{});
 
-    // 2. 创建文本分享
+    // 2. Create text paste
     std.debug.print("=== Creating text paste ===\n", .{});
     const create_params = see.text.CreateTextParams{
         .content = "Hello from Zig SDK!",
@@ -52,8 +52,8 @@ pub fn main() !void {
         std.debug.print("  URL: {s}\n", .{data.short_url});
         std.debug.print("  Slug: {s}\n", .{data.slug});
 
-        // 从 short_url 中提取 domain 用于后续操作
-        // 例如 "https://s.ee/txt123" -> "s.ee"
+        // Extract domain from short_url for subsequent operations
+        // e.g. "https://s.ee/txt123" -> "s.ee"
         const url = data.short_url;
         const protocol_end = std.mem.indexOf(u8, url, "://") orelse return error.InvalidURL;
         const domain_start = protocol_end + 3;
@@ -67,7 +67,7 @@ pub fn main() !void {
 
     std.debug.print("\n", .{});
 
-    // 3. 更新文本分享
+    // 3. Update text paste
     std.debug.print("=== Updating text paste ===\n", .{});
     const update_params = see.text.UpdateTextParams{
         .domain = created_domain,
@@ -88,9 +88,8 @@ pub fn main() !void {
 
     std.debug.print("\n", .{});
 
-    // 4. 删除文本分享
-    // 注意：DELETE 请求在 Zig 0.15 的 HTTP 客户端中不支持带 body
-    // 这是一个已知限制，未来版本可能会修复
+    // 4. Delete text paste
+    // Note: DELETE requests with body are not supported in Zig 0.15's HTTP client
     std.debug.print("=== Deleting text paste (skipped) ===\n", .{});
     std.debug.print("Note: DELETE with body is not supported in Zig 0.15's HTTP client.\n", .{});
     std.debug.print("The text paste URL is: https://{s}/{s}\n", .{ created_domain, created_slug });
